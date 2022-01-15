@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-cmn-Hans">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mini CDN</title>
+  <link rel="stylesheet" href="../libs/element-ui/2.15.5/index.css">
+  <script src="../libs/axios/0.24.0/axios.js"></script>
+  <script src="../libs/vue/2.6.14/vue.js"></script>
+  <script src="../libs/element-ui/2.15.5/index.js"></script>
+  <script src="../libs/vue-clipboard2/0.3.3/vue-clipboard.js"></script>
+  <style>
+    .monospace {
+      font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
+    }
+
+    .el-notification__content,
+    .el-notification__content p {
+      word-wrap: break-word;
+      white-space: normal;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>Mini CDN</h1>
+    <el-alert :title="tip" type="info">
+    </el-alert>
+
+    <el-input
+      v-model="filterText" clearable
+      placeholder="输入关键字进行过滤"
+      style="margin: 16px 0;">
+    </el-input>
+
+    <el-tree ref="tree"
+      class="monospace"
+      :data="treeData"
+      :props="defaultProps"
+      :filter-node-method="filterNode"
+      @node-click="onNodeClick">
+    </el-tree>
+  </div>
+</body>
+<script>
+  new Vue({
+    el: '#app',
+    data: {
+      filterText: '',
+      treeData: [],
+      defaultProps: {
+        label: 'name'
+      },
+      message: 'clipboard'
+    },
+    created () {
+      axios.get('/lib/list')
+        .then(res => res.data)
+        .then(res => {
+          this.treeData = res
+        }).catch(e => {
+          console.log(e)
+        }).finally(() => {})
+    },
+    computed: {
+      libBaseUrl () {
+        return window.location.origin + '/libs'
+      },
+      tip () {
+        return '基路径为：' + this.libBaseUrl + '; ' +
+          '点击文件名（不是目录名，即叶子节点）可复制文件访问 url'
+      }
+    },
+    watch: {
+      filterText (val) {
+        this.$refs.tree.filter(val)
+      }
+    },
+    methods: {
+      filterNode (value, data) {
+        if (!value) return true
+        return data.name.indexOf(value) !== -1
+      },
+      onNodeClick (data) {
+        if (data.isLeaf) {
+          const h = this.$createElement
+          this.$copyText(this.libBaseUrl + data.id)
+            .then(res => {
+              console.log(res)
+              this.$notify({
+                type: 'success',
+                title: '复制成功',
+                message: h('el-link', {
+                  props: {
+                    type: 'primary',
+                    href: res.text
+                  },
+                  attrs: {
+                    target: '_blank'
+                  }
+                }, res.text)
+              })
+            }, e => {
+              this.$notify({
+                type: 'error',
+                title: '复制失败',
+                message: '复制失败！（可以手动拼接 url）'
+              })
+            })
+        }
+      }
+    }
+  })
+</script>
+</html>
